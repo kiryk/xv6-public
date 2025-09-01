@@ -131,7 +131,7 @@ kernelmemfs: $(MEMFSOBJS) entry.o entryother initcode kernel.ld fs.img
 	$(OBJDUMP) -S kernelmemfs > kernelmemfs.asm
 	$(OBJDUMP) -t kernelmemfs | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > kernelmemfs.sym
 
-tags: $(OBJS) entryother.S _init
+tags: $(OBJS) entryother.S init.xv6
 	etags *.S *.c
 
 vectors.S: vectors.pl
@@ -139,16 +139,17 @@ vectors.S: vectors.pl
 
 ULIB = ulib.o usys.o printf.o umalloc.o
 
-_%: %.o $(ULIB)
-	$(LD) $(LDFLAGS) -N -e main -Ttext 0 -o $@ $^
+.SUFFIXES: .xv6
+.o.xv6: $(ULIB)
+	$(LD) $(LDFLAGS) -N -e main -Ttext 0 -o $@ $< $(ULIB)
 	$(OBJDUMP) -S $@ > $*.asm
 	$(OBJDUMP) -t $@ | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $*.sym
 
-_forktest: forktest.o $(ULIB)
+forktest.xv6: forktest.o $(ULIB)
 	# forktest has less library code linked in - needs to be small
 	# in order to be able to max out the proc table.
-	$(LD) $(LDFLAGS) -N -e main -Ttext 0 -o _forktest forktest.o ulib.o usys.o
-	$(OBJDUMP) -S _forktest > forktest.asm
+	$(LD) $(LDFLAGS) -N -e main -Ttext 0 -o forktest.xv6 forktest.o ulib.o usys.o
+	$(OBJDUMP) -S forktest.xv6 > forktest.asm
 
 mkfs: mkfs.c fs.h
 	$(CC) -Werror -Wall -o mkfs mkfs.c
@@ -160,21 +161,21 @@ mkfs: mkfs.c fs.h
 .PRECIOUS: %.o
 
 UPROGS=\
-	_cat\
-	_echo\
-	_forktest\
-	_grep\
-	_init\
-	_kill\
-	_ln\
-	_ls\
-	_mkdir\
-	_rm\
-	_sh\
-	_stressfs\
-	_usertests\
-	_wc\
-	_zombie\
+	cat.xv6\
+	echo.xv6\
+	forktest.xv6\
+	grep.xv6\
+	init.xv6\
+	kill.xv6\
+	ln.xv6\
+	ls.xv6\
+	mkdir.xv6\
+	rm.xv6\
+	sh.xv6\
+	stressfs.xv6\
+	usertests.xv6\
+	wc.xv6\
+	zombie.xv6\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)
@@ -225,7 +226,7 @@ qemu-nox: fs.img xv6.img
 	$(QEMU) -nographic $(QEMUOPTS)
 
 .gdbinit: .gdbinit.tmpl
-	sed "s/localhost:1234/localhost:$(GDBPORT)/" < $^ > $@
+	sed "s/localhost:1234/localhost:$(GDBPORT)/" < .gdbinit.tmpl > $@
 
 qemu-gdb: fs.img xv6.img .gdbinit
 	@echo "*** Now run 'gdb'." 1>&2

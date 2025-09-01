@@ -70,7 +70,7 @@ main(int argc, char *argv[])
   int i, cc, fd;
   uint rootino, inum, off;
   struct dirent de;
-  char buf[BSIZE];
+  char buf[BSIZE], *ch;
   struct dinode din;
 
 
@@ -135,12 +135,12 @@ main(int argc, char *argv[])
       exit(1);
     }
 
-    // Skip leading _ in name when writing to file system.
-    // The binaries are named _rm, _cat, etc. to keep the
+    // Skip .xv6 extension in name when writing to file system.
+    // The binaries are named rm.xv6, cat.xv6, etc. to keep the
     // build operating system from trying to execute them
     // in place of system binaries like rm and cat.
-    if(argv[i][0] == '_')
-      ++argv[i];
+    if((ch = strstr(argv[i], ".xv6")) && ch[4] == '\0')
+      *ch = '\0';
 
     inum = ialloc(T_FILE);
 
