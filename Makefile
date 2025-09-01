@@ -32,10 +32,10 @@ OBJS = \
 # TOOLPREFIX = i386-jos-elf
 
 # Using native tools (e.g., on X86 Linux)
-#TOOLPREFIX = 
+TOOLPREFIX = 
 
 # Try to infer the correct TOOLPREFIX if not set
-ifndef TOOLPREFIX
+.ifndef TOOLPREFIX
 TOOLPREFIX := $(shell if i386-jos-elf-objdump -i 2>&1 | grep '^elf32-i386$$' >/dev/null 2>&1; \
 	then echo 'i386-jos-elf-'; \
 	elif objdump -i 2>&1 | grep 'elf32-i386' >/dev/null 2>&1; \
@@ -48,13 +48,13 @@ TOOLPREFIX := $(shell if i386-jos-elf-objdump -i 2>&1 | grep '^elf32-i386$$' >/d
 	echo "*** environment variable to that prefix and run 'make' again." 1>&2; \
 	echo "*** To turn off this error, run 'gmake TOOLPREFIX= ...'." 1>&2; \
 	echo "***" 1>&2; exit 1; fi)
-endif
+.endif
 
 # If the makefile can't find QEMU, specify its path here
 # QEMU = qemu-system-i386
 
 # Try to infer the correct QEMU
-ifndef QEMU
+.ifndef QEMU
 QEMU = $(shell if which qemu > /dev/null; \
 	then echo qemu; exit; \
 	elif which qemu-system-i386 > /dev/null; \
@@ -69,26 +69,20 @@ QEMU = $(shell if which qemu > /dev/null; \
 	echo "*** Is the directory containing the qemu binary in your PATH" 1>&2; \
 	echo "*** or have you tried setting the QEMU variable in Makefile?" 1>&2; \
 	echo "***" 1>&2; exit 1)
-endif
+.endif
 
-CC = $(TOOLPREFIX)gcc
-AS = $(TOOLPREFIX)gas
+CC = $(TOOLPREFIX)cc
+AS = $(TOOLPREFIX)as
 LD = $(TOOLPREFIX)ld
 OBJCOPY = $(TOOLPREFIX)objcopy
 OBJDUMP = $(TOOLPREFIX)objdump
 CFLAGS = -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer
 CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
 ASFLAGS = -m32 -gdwarf-2 -Wa,-divide
-# FreeBSD ld wants ``elf_i386_fbsd''
-LDFLAGS += -m $(shell $(LD) -V | grep elf_i386 2>/dev/null | head -n 1)
 
-# Disable PIE when possible (for Ubuntu 16.10 toolchain)
-ifneq ($(shell $(CC) -dumpspecs 2>/dev/null | grep -e '[^f]no-pie'),)
-CFLAGS += -fno-pie -no-pie
-endif
-ifneq ($(shell $(CC) -dumpspecs 2>/dev/null | grep -e '[^f]nopie'),)
-CFLAGS += -fno-pie -nopie
-endif
+# LLVM+FreeBSD specific
+LDFLAGS += -m elf_i386_fbsd
+CFLAGS += -fno-pie
 
 xv6.img: bootblock kernel
 	dd if=/dev/zero of=xv6.img count=10000
@@ -216,9 +210,9 @@ GDBPORT = $(shell expr `id -u` % 5000 + 25000)
 QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
 	then echo "-gdb tcp::$(GDBPORT)"; \
 	else echo "-s -p $(GDBPORT)"; fi)
-ifndef CPUS
+.ifndef CPUS
 CPUS := 2
-endif
+.endif
 QEMUOPTS = -drive file=fs.img,index=1,media=disk,format=raw -drive file=xv6.img,index=0,media=disk,format=raw -smp $(CPUS) -m 512 $(QEMUEXTRA)
 
 qemu: fs.img xv6.img
