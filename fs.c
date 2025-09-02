@@ -26,6 +26,14 @@ static void itrunc(struct inode*);
 // there should be one superblock per disk device, but we run with
 // only one device
 struct superblock sb; 
+int fsoffset = 10000;
+
+// Read logical block
+struct buf*
+lbread(uint dev, uint blockno)
+{
+  return bread(dev, fsoffset+blockno);
+}
 
 // Read the super block.
 void
@@ -33,7 +41,7 @@ readsb(int dev, struct superblock *sb)
 {
   struct buf *bp;
 
-  bp = bread(dev, 1);
+  bp = lbread(dev, 1);
   memmove(sb, bp->data, sizeof(*sb));
   brelse(bp);
 }
@@ -44,7 +52,7 @@ bzero(int dev, int bno)
 {
   struct buf *bp;
 
-  bp = bread(dev, bno);
+  bp = lbread(dev, bno);
   memset(bp->data, 0, BSIZE);
   log_write(bp);
   brelse(bp);
@@ -61,7 +69,7 @@ balloc(uint dev)
 
   bp = 0;
   for(b = 0; b < sb.size; b += BPB){
-    bp = bread(dev, BBLOCK(b, sb));
+    bp = lbread(dev, BBLOCK(b, sb));
     for(bi = 0; bi < BPB && b + bi < sb.size; bi++){
       m = 1 << (bi % 8);
       if((bp->data[bi/8] & m) == 0){  // Is block free?
@@ -84,7 +92,7 @@ bfree(int dev, uint b)
   struct buf *bp;
   int bi, m;
 
-  bp = bread(dev, BBLOCK(b, sb));
+  bp = lbread(dev, BBLOCK(b, sb));
   bi = b % BPB;
   m = 1 << (bi % 8);
   if((bp->data[bi/8] & m) == 0)
@@ -199,7 +207,7 @@ ialloc(uint dev, short type)
   struct dinode *dip;
 
   for(inum = 1; inum < sb.ninodes; inum++){
-    bp = bread(dev, IBLOCK(inum, sb));
+    bp = lbread(dev, IBLOCK(inum, sb));
     dip = (struct dinode*)bp->data + inum%IPB;
     if(dip->type == 0){  // a free inode
       memset(dip, 0, sizeof(*dip));
@@ -223,7 +231,7 @@ iupdate(struct inode *ip)
   struct buf *bp;
   struct dinode *dip;
 
-  bp = bread(ip->dev, IBLOCK(ip->inum, sb));
+  bp = lbread(ip->dev, IBLOCK(ip->inum, sb));
   dip = (struct dinode*)bp->data + ip->inum%IPB;
   dip->type = ip->type;
   dip->major = ip->major;
@@ -296,7 +304,7 @@ ilock(struct inode *ip)
   acquiresleep(&ip->lock);
 
   if(ip->valid == 0){
-    bp = bread(ip->dev, IBLOCK(ip->inum, sb));
+    bp = lbread(ip->dev, IBLOCK(ip->inum, sb));
     dip = (struct dinode*)bp->data + ip->inum%IPB;
     ip->type = dip->type;
     ip->major = dip->major;
@@ -386,7 +394,7 @@ bmap(struct inode *ip, uint bn)
     // Load indirect block, allocating if necessary.
     if((addr = ip->addrs[NDIRECT]) == 0)
       ip->addrs[NDIRECT] = addr = balloc(ip->dev);
-    bp = bread(ip->dev, addr);
+    bp = lbread(ip->dev, addr);
     a = (uint*)bp->data;
     if((addr = a[bn]) == 0){
       a[bn] = addr = balloc(ip->dev);
@@ -419,7 +427,7 @@ itrunc(struct inode *ip)
   }
 
   if(ip->addrs[NDIRECT]){
-    bp = bread(ip->dev, ip->addrs[NDIRECT]);
+    bp = lbread(ip->dev, ip->addrs[NDIRECT]);
     a = (uint*)bp->data;
     for(j = 0; j < NINDIRECT; j++){
       if(a[j])
@@ -467,7 +475,7 @@ readi(struct inode *ip, char *dst, uint off, uint n)
     n = ip->size - off;
 
   for(tot=0; tot<n; tot+=m, off+=m, dst+=m){
-    bp = bread(ip->dev, bmap(ip, off/BSIZE));
+    bp = lbread(ip->dev, bmap(ip, off/BSIZE));
     m = min(n - tot, BSIZE - off%BSIZE);
     memmove(dst, bp->data + off%BSIZE, m);
     brelse(bp);
@@ -496,7 +504,7 @@ writei(struct inode *ip, char *src, uint off, uint n)
     return -1;
 
   for(tot=0; tot<n; tot+=m, off+=m, src+=m){
-    bp = bread(ip->dev, bmap(ip, off/BSIZE));
+    bp = lbread(ip->dev, bmap(ip, off/BSIZE));
     m = min(n - tot, BSIZE - off%BSIZE);
     memmove(bp->data + off%BSIZE, src, m);
     log_write(bp);

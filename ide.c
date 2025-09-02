@@ -50,22 +50,11 @@ idewait(int checkerr)
 void
 ideinit(void)
 {
-  int i;
-
   initlock(&idelock, "ide");
   ioapicenable(IRQ_IDE, ncpu - 1);
   idewait(0);
 
-  // Check if disk 1 is present
-  outb(0x1f6, 0xe0 | (1<<4));
-  for(i=0; i<1000; i++){
-    if(inb(0x1f7) != 0){
-      havedisk1 = 1;
-      break;
-    }
-  }
-
-  // Switch back to disk 0.
+  // Switch to disk 0.
   outb(0x1f6, 0xe0 | (0<<4));
 }
 
@@ -75,8 +64,6 @@ idestart(struct buf *b)
 {
   if(b == 0)
     panic("idestart");
-  if(b->blockno >= FSSIZE)
-    panic("incorrect blockno");
   int sector_per_block =  BSIZE/SECTOR_SIZE;
   int sector = b->blockno * sector_per_block;
   int read_cmd = (sector_per_block == 1) ? IDE_CMD_READ :  IDE_CMD_RDMUL;
