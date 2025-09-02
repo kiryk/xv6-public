@@ -180,13 +180,16 @@ UPROGS=\
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)
 
+os.img: xv6.img fs.img
+	cat xv6.img fs.img > os.img
+
 -include *.d
 
 clean: 
 	rm -f *.tex *.dvi *.idx *.aux *.log *.ind *.ilg \
 	*.o *.d *.asm *.sym vectors.S bootblock entryother \
-	initcode initcode.out kernel xv6.img fs.img kernelmemfs \
-	xv6memfs.img mkfs .gdbinit \
+	initcode initcode.out kernel xv6.img fs.img os.img \
+	kernelmemfs xv6memfs.img mkfs .gdbinit \
 	$(UPROGS)
 
 # make a printout
@@ -214,9 +217,9 @@ QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
 .ifndef CPUS
 CPUS := 2
 .endif
-QEMUOPTS = -drive file=fs.img,index=1,media=disk,format=raw -drive file=xv6.img,index=0,media=disk,format=raw -smp $(CPUS) -m 512 $(QEMUEXTRA)
+QEMUOPTS = -drive file=os.img,index=0,media=disk,format=raw -smp $(CPUS) -m 512 $(QEMUEXTRA)
 
-qemu: fs.img xv6.img
+qemu: os.img
 	$(QEMU) -serial mon:stdio $(QEMUOPTS)
 
 qemu-memfs: xv6memfs.img
