@@ -1,5 +1,3 @@
-.SUFFIXES: .xv6
-
 # Using native tools (e.g., on X86 Linux)
 TOOLPREFIX =
 
@@ -11,11 +9,11 @@ AS = $(TOOLPREFIX)as
 LD = $(TOOLPREFIX)ld
 OBJCOPY = $(TOOLPREFIX)objcopy
 OBJDUMP = $(TOOLPREFIX)objdump
-CFLAGS = -static -O2 -Wall -MD -ggdb -m32 -Werror -fno-pic -fno-builtin -fno-stack-protector -fno-strict-aliasing -fno-omit-frame-pointer
+CFLAGS = -static -O2 -Wall -MD -ggdb -m32 -Werror -fno-pic -fno-builtin -fno-stack-protector -fno-strict-aliasing -fno-omit-frame-pointer -Wno-array-bounds -Wno-infinite-recursion
 ASFLAGS = -m32 -gdwarf-2 -Wa,-divide
 
-# LLVM+FreeBSD specific
-LDFLAGS += -m elf_i386_fbsd
+# LLVM specific (FreeBSD wants '-m elf_i386_fbsd'):
+LDFLAGS += -m elf_i386
 CFLAGS += -fno-pie
 
 OBJS = \
@@ -46,7 +44,7 @@ OBJS = \
 	trap.o\
 	uart.o\
 	vectors.o\
-	vm.o\
+	vm.o
 
 UPROGS=\
 	cat.xv6\
@@ -63,9 +61,12 @@ UPROGS=\
 	stressfs.xv6\
 	usertests.xv6\
 	wc.xv6\
-	zombie.xv6\
+	zombie.xv6
 
 ULIB = ulib.o usys.o printf.o umalloc.o
+
+os.img: xv6.img fs.img
+	cat xv6.img fs.img > os.img
 
 xv6.img: bootblock kernel
 	dd if=/dev/zero of=xv6.img count=10000
@@ -74,9 +75,6 @@ xv6.img: bootblock kernel
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)
-
-os.img: xv6.img fs.img
-	cat xv6.img fs.img > os.img
 
 bootblock: bootasm.S bootmain.c
 	$(CC) $(CFLAGS) -fno-pic -Os -nostdinc -I. -c bootmain.c
@@ -105,8 +103,8 @@ kernel: $(OBJS) entry.o entryother initcode kernel.ld
 vectors.S: vectors.pl
 	./vectors.pl > vectors.S
 
-.o.xv6: $(ULIB)
-	$(LD) $(LDFLAGS) -N -e main -Ttext 0 -o $@ $< $(ULIB)
+%.xv6: %.o $(ULIB)
+	$(LD) $(LDFLAGS) -N -e main -Ttext 0 -o $@ $*.o $(ULIB)
 	$(OBJDUMP) -S $@ > $*.asm
 	$(OBJDUMP) -t $@ | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $*.sym
 
@@ -119,7 +117,7 @@ forktest.xv6: forktest.o $(ULIB)
 mkfs: mkfs.c fs.h
 	$(CC) -Werror -Wall -o mkfs mkfs.c
 
-clean: 
+clean:
 	rm -f *.tex *.dvi *.idx *.aux *.log *.ind *.ilg \
 	*.o *.d *.asm *.sym vectors.S bootblock entryother \
 	initcode initcode.out kernel xv6.img fs.img os.img \
