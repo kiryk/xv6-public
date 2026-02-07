@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl -w
+#!/usr/bin/env -S perl -w
 
 # Generate vectors.S, the trap/interrupt entry points.
 # There has to be one entry point per interrupt number
@@ -35,7 +35,7 @@ for(my $i = 0; $i < 256; $i++){
 #     pushl $0
 #     jmp alltraps
 #   ...
-#   
+#
 #   # vector table
 #   .data
 #   .globl vectors
